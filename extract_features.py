@@ -52,40 +52,62 @@ def get_head_pose(landmarks, image_shape):
     model_points = np.array([
         (0.0, 0.0, 0.0),             # Nos
         (0.0, -330.0, -65.0),        # Broda
-        (-225.0, 170.0, -135.0),     # Lewe oko kącik
-        (225.0, 170.0, -135.0),      # Prawe oko kącik
+        (-225.0, 170.0, -135.0),     # Lewe oko
+        (225.0, 170.0, -135.0),      # Prawe oko
         (-150.0, -150.0, -125.0),    # Lewe usta
         (150.0, -150.0, -125.0)      # Prawe usta
-    ])
+    ], dtype=np.float64)
 
     image_points = np.array([
         [landmarks[1].x * img_w, landmarks[1].y * img_h],     # Nos
         [landmarks[152].x * img_w, landmarks[152].y * img_h], # Broda
-        [landmarks[33].x * img_w, landmarks[33].y * img_h],   # Lewe oko kącik
-        [landmarks[263].x * img_w, landmarks[263].y * img_h], # Prawe oko kącik
-        [landmarks[61].x * img_w, landmarks[61].y * img_h],   # Lewe usta
-        [landmarks[291].x * img_w, landmarks[291].y * img_h]  # Prawe usta
-    ], dtype="double")
+        [landmarks[263].x * img_w, landmarks[263].y * img_h], # Lewe oko
+        [landmarks[33].x * img_w, landmarks[33].y * img_h],   # Prawe oko
+        [landmarks[291].x * img_w, landmarks[291].y * img_h], # Lewe usta
+        [landmarks[61].x * img_w, landmarks[61].y * img_h]    # Prawy kącik
+    ], dtype=np.float64)
 
-    focal_length = img_w
-    center = (img_w / 2, img_h / 2)
-    camera_matrix = np.array(
-        [[focal_length, 0, center[0]],
-         [0, focal_length, center[1]],
-         [0, 0, 1]], dtype="double"
-    )
-    dist_coeffs = np.zeros((4, 1))
+    model_points = np.ascontiguousarray(model_points)
+    image_points = np.ascontiguousarray(image_points)
+
+    focal_length = float(img_w)
+    center = (img_w / 2.0, img_h / 2.0)
+
+    camera_matrix = np.array([
+        [focal_length, 0, center[0]],
+        [0, focal_length, center[1]],
+        [0, 0, 1]
+    ], dtype=np.float64)
+
+    dist_coeffs = np.zeros((4, 1), dtype=np.float64)
 
     success, rotation_vector, translation_vector = cv2.solvePnP(
-        model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
+        model_points, 
+        image_points, 
+        camera_matrix, 
+        dist_coeffs, 
+        flags=cv2.SOLVEPNP_EPNP
     )
 
-    rmat, _ = cv2.Rodrigues(rotation_vector)
-    angles, _, _, _, _, _ = cv2.RQDecompose3x3(rmat)
+    if not success:
+        return np.nan, np.nan
 
-    pitch = angles[0] * 360
-    yaw = angles[1] * 360
-    return pitch, yaw
+    rmat, _ = cv2.Rodrigues(rotation_vector)
+
+    sy = np.sqrt(rmat[0, 0] * rmat[0, 0] + rmat[1, 0] * rmat[1, 0])
+    singular = sy < 1e-6
+
+    if not singular:
+        pitch = np.arctan2(rmat[2, 1], rmat[2, 2])
+        yaw = np.arctan2(-rmat[2, 0], sy)
+    else:
+        pitch = np.arctan2(-rmat[1, 2], rmat[1, 1])
+        yaw = np.arctan2(-rmat[2, 0], sy)
+
+    pitch_deg = np.degrees(pitch)
+    yaw_deg = np.degrees(yaw)
+
+    return float(pitch_deg), float(yaw_deg)
 
 
 def process_video_features(session_dir):
@@ -143,8 +165,8 @@ def process_video_features(session_dir):
 
             try:
                 pitch, yaw = get_head_pose(landmarks, frame.shape)
-            except Exception:
-                pass
+            except Exception as e:
+                pitch, yaw = np.nan, np.nan
 
         features.append({
             "frame_idx": frame_idx,
