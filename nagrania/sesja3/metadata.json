@@ -6,5 +6,6 @@
     "test_duration_seconds": 7200,
     "fatigue_interval_seconds": 1200,
     "polar": "Polar H9",
-    "created_utc": "2026-08-29T15:07:02.680111+00:00"
+    "created_utc": "2026-08-29T15:07:02.680111+00:00",
+    "driver_id": 0
 }
