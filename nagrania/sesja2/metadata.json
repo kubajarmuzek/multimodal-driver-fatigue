@@ -1,0 +1,10 @@
+{
+    "experiment_id": "20260829_071845",
+    "camera": "Logi C270 HD WebCam",
+    "camera_resolution": "1280x720",
+    "camera_fps": 30,
+    "test_duration_seconds": 7200,
+    "fatigue_interval_seconds": 1200,
+    "polar": "Polar H9",
+    "created_utc": "2026-08-29T05:20:36.971439+00:00"
+}
